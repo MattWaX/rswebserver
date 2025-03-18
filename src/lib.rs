@@ -34,6 +34,7 @@ impl ThreadPool {
         ThreadPool { workers, sender }
     }
 
+    /// Send the job to a worker in the `ThreadPool`
     pub fn execute<F>(&self, f: F)
     where
         F: FnOnce() + Send + 'static,
@@ -50,6 +51,7 @@ pub struct Worker {
 }
 
 impl Worker {
+    /// Create a new worker that listen for new jobs to execute
     pub fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
         let thread = thread::spawn(move || loop {
             let job = receiver.lock().unwrap().recv().unwrap();

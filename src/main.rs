@@ -2,7 +2,6 @@ use std::{
     fs,
     io::{BufReader, prelude::*},
     net::{TcpListener, TcpStream},
-    thread,
 };
 use webserver::ThreadPool;
 
