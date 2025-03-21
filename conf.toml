@@ -1,0 +1,12 @@
+[server]
+host = "127.0.0.1"
+port = "7878"
+threads = 4
+
+[[resources]]
+request = "/"
+response = "/home/MattWaX/exercise-code/rust/rswebserver/test.html"
+
+[[resources]]
+request = "/root"
+response = "/"

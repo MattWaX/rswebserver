@@ -3,9 +3,11 @@ use std::{
     io::{BufReader, prelude::*},
     net::{TcpListener, TcpStream},
 };
-use webserver::ThreadPool;
+use webserver::{Config, ThreadPool};
 
 fn main() {
+    let config = Config::from_default_config_file().unwrap();
+    dbg!(&config);
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
     let pool = ThreadPool::new(4);
 
