@@ -4,13 +4,23 @@ use std::{
     net::{TcpListener, TcpStream},
     sync::Arc,
 };
-use webserver::{Config, ThreadPool};
+use webserver::{Config, Server, ThreadPool};
 
 fn main() {
     let config = Config::from_default_config_file().unwrap();
     dbg!(&config);
-    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
-    let pool = ThreadPool::new(4);
+    //let host = &config.server.as_ref().unwrap().host.as_ref().unwrap();
+    //let port = &config.server.as_ref().unwrap().port.as_ref().unwrap();
+    let Server {
+        host,
+        port,
+        threads,
+    } = config.server.as_ref().unwrap();
+    let host = if let Some(host) = host { host } else { "127.0.0.1" };
+    let port = if let Some(port) = port { port } else { "80" };
+    let threads = if let Some(threads) = threads { threads } else { &1 };
+    let listener = TcpListener::bind(format!("{host}:{port}")).unwrap();
+    let pool = ThreadPool::new(*threads);
 
     for stream in listener.incoming() {
         let stream = match stream {
@@ -18,8 +28,10 @@ fn main() {
             Err(_) => continue,
         };
 
+        let config = Arc::clone(&config);
+
         pool.execute(|| {
-            handle_connection(stream, config.clone());
+            handle_connection(stream, config);
             println!("new request handled");
         });
     }

@@ -10,27 +10,27 @@ use std::{
 #[derive(Deserialize, Debug)]
 pub struct Config {
     #[allow(dead_code)]
-    server: Option<Server>,
+    pub server: Option<Server>,
     #[allow(dead_code)]
-    resources: Option<Vec<Resource>>,
+    pub resources: Option<Vec<Resource>>,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct Server {
     #[allow(dead_code)]
-    host: Option<String>,
+    pub host: Option<String>,
     #[allow(dead_code)]
-    port: Option<String>,
+    pub port: Option<String>,
     #[allow(dead_code)]
-    threads: Option<usize>,
+    pub threads: Option<usize>,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct Resource {
     #[allow(dead_code)]
-    request: String,
+    pub request: String,
     #[allow(dead_code)]
-    response: String,
+    pub response: String,
 }
 
 impl Config {
