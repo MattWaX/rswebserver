@@ -34,14 +34,14 @@ pub struct Resource {
 }
 
 impl Config {
-    pub fn from_default_config_file() -> Result<Config, Box<dyn Error>> {
+    pub fn from_default_config_file() -> Result<Arc<Config>, Box<dyn Error>> {
         //let etc_path = "/etc/rustweb/conf.toml";
         let etc_path = "/home/MattWaX/exercise-code/rust/rswebserver/conf.toml";
         if fs::exists(etc_path)? {
             let toml_str = fs::read_to_string(Path::new(&etc_path))?;
             let config: Config = toml::from_str(&toml_str)?;
 
-            Ok(config)
+            Ok(Arc::new(config))
         } else {
             todo!("Create a new config file if not existant");
         }

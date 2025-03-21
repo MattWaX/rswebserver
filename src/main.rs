@@ -2,6 +2,7 @@ use std::{
     fs,
     io::{BufReader, prelude::*},
     net::{TcpListener, TcpStream},
+    sync::Arc,
 };
 use webserver::{Config, ThreadPool};
 
@@ -18,13 +19,13 @@ fn main() {
         };
 
         pool.execute(|| {
-            handle_connection(stream);
+            handle_connection(stream, config.clone());
             println!("new request handled");
         });
     }
 }
 
-fn handle_connection(mut stream: TcpStream) {
+fn handle_connection(mut stream: TcpStream, config: Arc<Config>) {
     let buf_reader = BufReader::new(&stream);
     let request_line = buf_reader.lines().next().unwrap().unwrap();
 
