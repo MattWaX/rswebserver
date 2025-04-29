@@ -1,12 +1,12 @@
 [server]
-host = "127.0.0.1"
+host = "0.0.0.0"
 port = "7878"
 threads = 4
 
 [[resources]]
 request = "/"
-response = "/home/MattWaX/exercise-code/rust/rswebserver/test.html"
+response = "/home/MattWaX/exercise-code/rust/rswebserver/www/index.html"
 
-[[resources]]
-request = "/root"
-response = "/"
+# [[resources]]
+# request = "/web"
+# response = "/home/MattWaX/Projects/comino18.mattwax.xyz/www/index.html"

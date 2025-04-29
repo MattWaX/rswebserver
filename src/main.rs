@@ -59,7 +59,7 @@ fn handle_connection(mut stream: TcpStream, config: Arc<Config>) {
         Some(resources) => resources,
         _ => &vec![Resource {
             request: "/".to_string(),
-            response: "/404.html".to_string(),
+            response: "www/404.html".to_string(),
         }],
     };
 
