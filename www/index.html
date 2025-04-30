@@ -101,12 +101,16 @@ id="toc-introduzione-capolavoro">Introduzione capolavoro</a></li>
 <ul>
 <li><a href="#il-main" id="toc-il-main">Il main</a>
 <ul>
-<li><a href="#variabili-dichiarate"
-id="toc-variabili-dichiarate">Variabili dichiarate</a></li>
+<li><a href="#inizializzazione-delle-strutture-di-dati-necessarie"
+id="toc-inizializzazione-delle-strutture-di-dati-necessarie">Inizializzazione
+delle strutture di dati necessarie</a></li>
+<li><a href="#gestione-delle-richieste"
+id="toc-gestione-delle-richieste">Gestione delle richieste</a></li>
 </ul></li>
 </ul></li>
 </ul>
 </nav>
+<main>
 <h1 id="introduzione-capolavoro">Introduzione capolavoro</h1>
 <p>Essendo un amante del linguaggio di programmazione rust e affascinato
 dalla programmazione con correnti, ho deciso di implementare un web
@@ -116,7 +120,10 @@ contemporaneamente, ma anche configurabile tramite un file toml.</p>
 href="http://webserver.rust.mattwax.yxz">indirizzo</a> (ma sarà attivo
 solo per occasioni particolari), oppure vi si può accedere da questo
 link: <a
-href="https://mattwax.xyz/rs/webserver/">mattwax.xyz/rs/webserver/</a>.</p>
+href="https://mattwax.xyz/rs/webserver/">mattwax.xyz/rs/webserver/</a>.
+Il repository di git con il codice sorgente e questa pagina web è
+presente a quest’<a
+href="https://github.com/MattWaX/rswebserver">indirizzo</a>.</p>
 <h1 id="il-codice">Il codice</h1>
 <h2 id="il-main">Il main</h2>
 <p>Partirei con il far vedere il <code>main</code> del programma:</p>
@@ -172,31 +179,144 @@ soltanto di creare un ascoltatore sulla porta definita nel file di
 configurazione e smistare le richieste alla funzione
 <code>handle_connection()</code>. Adesso scendiamo più nel dettaglio di
 quello che succede dietro le quinte.</p>
-<h3 id="variabili-dichiarate">Variabili dichiarate</h3>
+<h3
+id="inizializzazione-delle-strutture-di-dati-necessarie">Inizializzazione
+delle strutture di dati necessarie</h3>
 <p>Per prima cosa raccogliamo le informazioni dal file di configurazione
-nella location di default, che per scopi di debugging è</p>
+nella location di default.</p>
 <div class="sourceCode" id="cb2"><pre
 class="sourceCode rust"><code class="sourceCode rust"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> config <span class="op">=</span> <span class="pp">Config::</span>from_default_config_file()<span class="op">.</span>unwrap()<span class="op">;</span></span></code></pre></div>
+<p><code>Config</code> è definita in <code>src/lib.rs</code> nel
+seguente modo:</p>
 <div class="sourceCode" id="cb3"><pre
-class="sourceCode rust"><code class="sourceCode rust"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> Server <span class="op">{</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    host<span class="op">,</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    port<span class="op">,</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    threads<span class="op">,</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="op">}</span> <span class="op">=</span> config<span class="op">.</span>server<span class="op">.</span>as_ref()<span class="op">.</span>unwrap()<span class="op">;</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> host <span class="op">=</span> <span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(host) <span class="op">=</span> host <span class="op">{</span></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    host</span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span> <span class="cf">else</span> <span class="op">{</span></span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;127.0.0.1&quot;</span></span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> port <span class="op">=</span> <span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(port) <span class="op">=</span> port <span class="op">{</span> port <span class="op">}</span> <span class="cf">else</span> <span class="op">{</span> <span class="st">&quot;80&quot;</span> <span class="op">};</span></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> threads <span class="op">=</span> <span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(threads) <span class="op">=</span> threads <span class="op">{</span></span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>    threads</span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="op">}</span> <span class="cf">else</span> <span class="op">{</span></span>
-<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>    <span class="op">&amp;</span><span class="dv">1</span></span>
-<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> listener <span class="op">=</span> <span class="pp">TcpListener::</span>bind(<span class="pp">format!</span>(<span class="st">&quot;{host}:{port}&quot;</span>))<span class="op">.</span>unwrap()<span class="op">;</span></span>
-<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> pool <span class="op">=</span> <span class="pp">ThreadPool::</span>new(<span class="op">*</span>threads)<span class="op">;</span></span></code></pre></div>
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">serde::</span>Deserialize<span class="op">;</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>derive<span class="at">(</span>Deserialize<span class="op">,</span> <span class="bu">Debug</span><span class="at">)]</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> Config <span class="op">{</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">#[</span>allow<span class="at">(</span>dead_code<span class="at">)]</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> server<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span>Server<span class="op">&gt;,</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">#[</span>allow<span class="at">(</span>dead_code<span class="at">)]</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> resources<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span><span class="dt">Vec</span><span class="op">&lt;</span>Resource<span class="op">&gt;&gt;,</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>derive<span class="at">(</span>Deserialize<span class="op">,</span> <span class="bu">Debug</span><span class="at">)]</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> Server <span class="op">{</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">#[</span>allow<span class="at">(</span>dead_code<span class="at">)]</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> host<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span><span class="dt">String</span><span class="op">&gt;,</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">#[</span>allow<span class="at">(</span>dead_code<span class="at">)]</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> port<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span><span class="dt">String</span><span class="op">&gt;,</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">#[</span>allow<span class="at">(</span>dead_code<span class="at">)]</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> threads<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span><span class="dt">usize</span><span class="op">&gt;,</span></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>derive<span class="at">(</span>Deserialize<span class="op">,</span> <span class="bu">Debug</span><span class="at">)]</span></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> Resource <span class="op">{</span></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">#[</span>allow<span class="at">(</span>dead_code<span class="at">)]</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> request<span class="op">:</span> <span class="dt">String</span><span class="op">,</span></span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">#[</span>allow<span class="at">(</span>dead_code<span class="at">)]</span></span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> response<span class="op">:</span> <span class="dt">String</span><span class="op">,</span></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> Config <span class="op">{</span></span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> from_default_config_file() <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>Arc<span class="op">&lt;</span>Config<span class="op">&gt;,</span> <span class="dt">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="bu">Error</span><span class="op">&gt;&gt;</span> <span class="op">{</span></span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>        <span class="co">//let etc_path = &quot;/etc/rustweb/conf.toml&quot;; </span></span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>        <span class="co">//^^^ è il vero percorso che si utilizzerebbe in un sistema unix</span></span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> etc_path <span class="op">=</span> <span class="st">&quot;/home/MattWaX/exercise-code/rust/rswebserver/conf.toml&quot;</span><span class="op">;</span></span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="pp">fs::</span>exists(etc_path)<span class="op">?</span> <span class="op">{</span></span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> toml_str <span class="op">=</span> <span class="pp">fs::</span>read_to_string(<span class="dt">Path</span><span class="pp">::</span>new(<span class="op">&amp;</span>etc_path))<span class="op">?;</span></span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> config<span class="op">:</span> Config <span class="op">=</span> <span class="pp">toml::</span>from_str(<span class="op">&amp;</span>toml_str)<span class="op">?;</span></span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>            <span class="cn">Ok</span>(<span class="pp">Arc::</span>new(config))</span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span> <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>            <span class="pp">todo!</span>(<span class="st">&quot;Create a new config file if not existant&quot;</span>)<span class="op">;</span></span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p>Per facilitare il parsing dei dati contenuti nel file di
+configurazione, ho utilizzato la crate <code>Serde</code> (simile ad una
+libreria nel uso pratico) e da essa la macro <code>Deserialize</code>
+che si occupa della deserializzazione del file nel metodo che legge il
+file di configurazione <code>from_default_config_file()</code>. La
+struttura <code>Config</code> è composta da una struttura
+<code>Server</code> che poi al suo interno contiene le specifiche di
+come verrà avviato il server (host, porta e quanti Thread saranno nella
+Thread Pool) e da un vettore di <code>Resource</code> che conterrà tutte
+le pagine del sito e il loro url.</p>
+<p>Successivamente nel <code>main</code> andiamo a scomporre il campo
+<code>Server</code> dalla struct <code>Config</code>.</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> Server <span class="op">{</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    host<span class="op">,</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    port<span class="op">,</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    threads<span class="op">,</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="op">}</span> <span class="op">=</span> config<span class="op">.</span>server<span class="op">.</span>as_ref()<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> host <span class="op">=</span> <span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(host) <span class="op">=</span> host <span class="op">{</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    host</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span> <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;127.0.0.1&quot;</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> port <span class="op">=</span> <span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(port) <span class="op">=</span> port <span class="op">{</span> port <span class="op">}</span> <span class="cf">else</span> <span class="op">{</span> <span class="st">&quot;80&quot;</span> <span class="op">};</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> threads <span class="op">=</span> <span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(threads) <span class="op">=</span> threads <span class="op">{</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    threads</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="op">}</span> <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>    <span class="op">&amp;</span><span class="dv">1</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span></code></pre></div>
+<p>Adesso possiamo finalmente avviare il server su host e porta
+specificate in <code>conf.toml</code> e definire anche quanti
+<code>Worker</code> ci saranno nella <code>ThreadPool</code>, non
+vogliamo esporre il server cosi alla possibilità di avere un numero
+potenzialmente infinito di threads in esecuzione contemporaneamente e
+quindi essere più vulnerabili ad un attacco di tipo DoS o più
+probabilmente un sovraccarico per il troppo traffico.</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> listener <span class="op">=</span> <span class="pp">TcpListener::</span>bind(<span class="pp">format!</span>(<span class="st">&quot;{host}:{port}&quot;</span>))<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> pool <span class="op">=</span> <span class="pp">ThreadPool::</span>new(<span class="op">*</span>threads)<span class="op">;</span></span></code></pre></div>
+<h3 id="gestione-delle-richieste">Gestione delle richieste</h3>
+<p>La logica per gestire le richieste http è molto semplice, per ogni
+richesta che arriva nello stream controlliamo se ha un valore, nel caso
+sia vero cloniamo lo smart pointer <code>Arc</code> che punta a
+<code>&amp;config</code> e passiamo la funzione che contiene le
+istruzioni per rispondere alla richiesta,
+<code>handle_connection()</code> alla <code>ThreadPool</code>.</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> stream <span class="kw">in</span> listener<span class="op">.</span>incoming() <span class="op">{</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> stream <span class="op">=</span> <span class="cf">match</span> stream <span class="op">{</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>        <span class="cn">Ok</span>(stream) <span class="op">=&gt;</span> stream<span class="op">,</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>        <span class="cn">Err</span>(_) <span class="op">=&gt;</span> <span class="cf">continue</span><span class="op">,</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    <span class="op">};</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> config <span class="op">=</span> <span class="pp">Arc::</span>clone(<span class="op">&amp;</span>config)<span class="op">;</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    pool<span class="op">.</span>execute(<span class="op">||</span> <span class="op">{</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>        handle_connection(stream<span class="op">,</span> config)<span class="op">;</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>        <span class="pp">println!</span>(<span class="st">&quot;new request handled&quot;</span>)<span class="op">;</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span>)<span class="op">;</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<!-- TODO:handle -->
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> handle_connection(<span class="kw">mut</span> stream<span class="op">:</span> TcpStream<span class="op">,</span> config<span class="op">:</span> Arc<span class="op">&lt;</span>Config<span class="op">&gt;</span>) <span class="op">{</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> buf_reader <span class="op">=</span> <span class="pp">BufReader::</span>new(<span class="op">&amp;</span>stream)<span class="op">;</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> request_line <span class="op">=</span> buf_reader<span class="op">.</span>lines()<span class="op">.</span>next()<span class="op">.</span>unwrap()<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> resources <span class="op">=</span> <span class="cf">match</span> <span class="op">&amp;</span>config<span class="op">.</span>resources <span class="op">{</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>        <span class="cn">Some</span>(resources) <span class="op">=&gt;</span> resources<span class="op">,</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>        _ <span class="op">=&gt;</span> <span class="op">&amp;</span><span class="pp">vec!</span>[Resource <span class="op">{</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>            request<span class="op">:</span> <span class="st">&quot;/&quot;</span><span class="op">.</span>to_string()<span class="op">,</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>            response<span class="op">:</span> <span class="st">&quot;www/404.html&quot;</span><span class="op">.</span>to_string()<span class="op">,</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span>]<span class="op">,</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    <span class="op">};</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> resource <span class="kw">in</span> resources <span class="op">{</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> request_line <span class="op">==</span> <span class="pp">format!</span>(<span class="st">&quot;GET {} HTTP/1.1&quot;</span><span class="op">,</span> resource<span class="op">.</span>request) <span class="op">{</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> contents <span class="op">=</span> <span class="pp">fs::</span>read_to_string(<span class="op">&amp;</span>resource<span class="op">.</span>response)<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> response <span class="op">=</span> <span class="pp">format!</span>(<span class="st">&quot;HTTP/1.1 200 OK</span><span class="sc">\r\n\r\n</span><span class="st">{}&quot;</span><span class="op">,</span> contents)<span class="op">;</span></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>            stream<span class="op">.</span>write_all(response<span class="op">.</span>as_bytes())<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span><span class="op">;</span></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<code>...</code>
+</main>
 </body>
 </html>
