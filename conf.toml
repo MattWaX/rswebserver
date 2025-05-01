@@ -7,6 +7,6 @@ threads = 4
 request = "/"
 response = "/home/MattWaX/exercise-code/rust/rswebserver/www/index.html"
 
-# [[resources]]
-# request = "/web"
-# response = "/home/MattWaX/Projects/comino18.mattwax.xyz/www/index.html"
+[[resources]]
+request = "/style.css"
+response = "/home/MattWaX/exercise-code/rust/rswebserver/www/style.css"
