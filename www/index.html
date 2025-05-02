@@ -107,7 +107,14 @@ delle strutture di dati necessarie</a></li>
 <li><a href="#gestione-delle-richieste"
 id="toc-gestione-delle-richieste">Gestione delle richieste</a></li>
 </ul></li>
+<li><a href="#contenuto-di-lib.rs"
+id="toc-contenuto-di-lib.rs">Contenuto di <code>lib.rs</code></a>
+<ul>
+<li><a href="#worker" id="toc-worker">Worker</a></li>
+<li><a href="#threadpool" id="toc-threadpool">ThreadPool</a></li>
 </ul></li>
+</ul></li>
+<li><a href="#conclusione" id="toc-conclusione">Conclusione</a></li>
 </ul>
 </nav>
 <main>
@@ -293,7 +300,16 @@ class="sourceCode rust"><code class="sourceCode rust"><span id="cb6-1"><a href="
 <span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>        <span class="pp">println!</span>(<span class="st">&quot;new request handled&quot;</span>)<span class="op">;</span></span>
 <span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span>)<span class="op">;</span></span>
 <span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
-<!-- TODO:handle -->
+<p>Molto semplicemente quello che fa questa funzione è ottenere lo
+stream per poterci leggere e scrivere sopra, ottiene la richiesta e la
+salviamo in <code>request_line</code>, una volta ottenuta controlliamo
+con il costrutto <code>match</code> (analogo allo <code>switch</code> in
+altri linguaggi, ma molto più espressivo) se la pagina esiste tra quelle
+elencate nel file di configurazione, in caso contrario il caso di
+default <code>_</code> porterà alla pagina <code>404.html</code> per
+segnalare che il contenuto non esiste. Adesso possiamo leggere il
+contenuto della pagina richiesta e scrivere sullo stream la risposta
+http.</p>
 <div class="sourceCode" id="cb7"><pre
 class="sourceCode rust"><code class="sourceCode rust"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> handle_connection(<span class="kw">mut</span> stream<span class="op">:</span> TcpStream<span class="op">,</span> config<span class="op">:</span> Arc<span class="op">&lt;</span>Config<span class="op">&gt;</span>) <span class="op">{</span></span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> buf_reader <span class="op">=</span> <span class="pp">BufReader::</span>new(<span class="op">&amp;</span>stream)<span class="op">;</span></span>
@@ -316,7 +332,122 @@ class="sourceCode rust"><code class="sourceCode rust"><span id="cb7-1"><a href="
 <span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
 <span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
 <span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
-<code>...</code>
+<h2 id="contenuto-di-lib.rs">Contenuto di <code>lib.rs</code></h2>
+<p>Oltre all’implementazione della deserializzazione del file di
+configurazione, all’interno del file <code>lib.rs</code> vi si trova il
+codice per la gestione della <code>ThreadPool</code> e dei
+<code>Worker</code>.</p>
+<h3 id="worker">Worker</h3>
+<p>La struct che definisce i <code>Worker</code> è molto semplice:</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> Worker <span class="op">{</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    id<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    thread<span class="op">:</span> <span class="pp">thread::</span>JoinHandle<span class="op">&lt;</span>()<span class="op">&gt;,</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p>Abbiamo infatti solo un id per poter differenziare i
+<code>Worker</code> e l’handle che gli permette di attaccarsi ad i
+thread in arrivo.</p>
+<p>Implementiamo poi il metodo per poter creare un nuovo
+<code>Worker</code> che rimarrà in ascolto di nuovi <code>job</code> su
+un suo thread apposito da eseguire. Restituiamo alla fine
+<code>Worker { id, thread }</code> per essere gestito dalla
+<code>ThreadPool</code>.</p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> Worker <span class="op">{</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Create a new worker that listen for new jobs to execute</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> new(id<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span> receiver<span class="op">:</span> Arc<span class="op">&lt;</span>Mutex<span class="op">&lt;</span><span class="pp">mpsc::</span>Receiver<span class="op">&lt;</span>Job<span class="op">&gt;&gt;&gt;</span>) <span class="op">-&gt;</span> Worker <span class="op">{</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> thread <span class="op">=</span> <span class="pp">thread::</span>spawn(<span class="kw">move</span> <span class="op">||</span> <span class="op">{</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>            <span class="cf">loop</span> <span class="op">{</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>                <span class="kw">let</span> message <span class="op">=</span> receiver<span class="op">.</span>lock()<span class="op">.</span>unwrap()<span class="op">.</span>recv()<span class="op">;</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>                <span class="cf">match</span> message <span class="op">{</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>                    <span class="cn">Ok</span>(job) <span class="op">=&gt;</span> <span class="op">{</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>                        <span class="pp">println!</span>(<span class="st">&quot;Worker {id} got a job; executing.&quot;</span>)<span class="op">;</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>                        job()<span class="op">;</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>                    <span class="op">}</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>                    <span class="cn">Err</span>(_) <span class="op">=&gt;</span> <span class="op">{</span></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>                        <span class="pp">println!</span>(<span class="st">&quot;Worker {id} disconnected! Shutting down!&quot;</span>)<span class="op">;</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>                        <span class="cf">break</span><span class="op">;</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>                    <span class="op">}</span></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>                <span class="op">}</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span>)<span class="op">;</span></span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>        Worker <span class="op">{</span> id<span class="op">,</span> thread <span class="op">}</span></span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p><code>job</code> è un abbreviazione il tipo completo è definito
+cosi:</p>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> Job <span class="op">=</span> <span class="dt">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="bu">FnOnce</span>() <span class="op">+</span> <span class="bu">Send</span> <span class="op">+</span> <span class="ot">&#39;static</span><span class="op">&gt;;</span></span></code></pre></div>
+<p>Ovvero un puntatore <code>Box&lt;T&gt;</code> ad una funzione col
+tratto <code>Send</code>.</p>
+<h3 id="threadpool">ThreadPool</h3>
+<p>Nella struct che definisce la <code>ThreadPool</code> abbiamo come
+attributi un vettore di <code>Worker</code> e il canale per mandare i
+thread che riceviamo ai nostri <code>Worker</code>.</p>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> ThreadPool <span class="op">{</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>    workers<span class="op">:</span> <span class="dt">Vec</span><span class="op">&lt;</span>Worker<span class="op">&gt;,</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>    sender<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span><span class="pp">mpsc::</span>Sender<span class="op">&lt;</span>Job<span class="op">&gt;&gt;,</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p>Le due funzioni implementate servono rispettivamente per
+inizializzare la <code>ThreadPool</code> e per mandare richieste ai
+<code>Worker</code> liberi.</p>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> ThreadPool <span class="op">{</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Create a ThreadPool</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">///</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// The `new` function will panic if the size is zero.</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> new(size<span class="op">:</span> <span class="dt">usize</span>) <span class="op">-&gt;</span> ThreadPool <span class="op">{</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>        <span class="pp">assert!</span>(size <span class="op">&gt;</span> <span class="dv">0</span>)<span class="op">;</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> (sender<span class="op">,</span> receiver) <span class="op">=</span> <span class="pp">mpsc::</span>channel()<span class="op">;</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> receiver <span class="op">=</span> <span class="pp">Arc::</span>new(<span class="pp">Mutex::</span>new(receiver))<span class="op">;</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> <span class="kw">mut</span> workers <span class="op">=</span> <span class="dt">Vec</span><span class="pp">::</span>with_capacity(size)<span class="op">;</span></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i <span class="kw">in</span> <span class="dv">0</span><span class="op">..</span>size <span class="op">{</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>            workers<span class="op">.</span>push(<span class="pp">Worker::</span>new(i<span class="op">,</span> <span class="pp">Arc::</span>clone(<span class="op">&amp;</span>receiver)))<span class="op">;</span></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>        ThreadPool <span class="op">{</span></span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>            workers<span class="op">,</span></span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>            sender<span class="op">:</span> <span class="cn">Some</span>(sender)<span class="op">,</span></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Send the job to a worker in the `ThreadPool`</span></span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> execute<span class="op">&lt;</span>F<span class="op">&gt;</span>(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> f<span class="op">:</span> F)</span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>    <span class="kw">where</span></span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>        F<span class="op">:</span> <span class="bu">FnOnce</span>() <span class="op">+</span> <span class="bu">Send</span> <span class="op">+</span> <span class="ot">&#39;static</span><span class="op">,</span></span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>    <span class="op">{</span></span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> job <span class="op">=</span> <span class="dt">Box</span><span class="pp">::</span>new(f)<span class="op">;</span></span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>sender<span class="op">.</span>as_ref()<span class="op">.</span>unwrap()<span class="op">.</span>send(job)<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p>Non dobbiamo scordarci di implementare anche il tratto
+<code>Drop</code> dove nella funzione <code>drop(&amp;mut self)</code>
+andiamo a descrivere come si dovrà comportare il programma quando la
+<code>ThreadPool</code> cadrà fuori dallo scopo e quindi dovrà essere
+liberata dalla memoria.</p>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> <span class="bu">Drop</span> <span class="cf">for</span> ThreadPool <span class="op">{</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> drop(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>) <span class="op">{</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>        drop(<span class="kw">self</span><span class="op">.</span>sender<span class="op">.</span>take())<span class="op">;</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> worker <span class="kw">in</span> <span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">.</span>workers<span class="op">.</span>drain(<span class="op">..</span>) <span class="op">{</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>            <span class="pp">println!</span>(<span class="st">&quot;Shutting down worker {}&quot;</span><span class="op">,</span> worker<span class="op">.</span>id)<span class="op">;</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>            worker<span class="op">.</span>thread<span class="op">.</span>join()<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h1 id="conclusione">Conclusione</h1>
+<p>Grazie di aver letto fino ad ora spero possa essere stato
+interessante.</p>
 </main>
 </body>
 </html>

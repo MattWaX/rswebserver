@@ -158,7 +158,8 @@ for stream in listener.incoming() {
 }
 ```
 
-<!-- TODO:handle -->
+Molto semplicemente quello che fa questa funzione è ottenere lo stream per poterci leggere e scrivere sopra, ottiene la richiesta e la salviamo in `request_line`, una volta ottenuta controlliamo con il costrutto `match` (analogo allo `switch` in altri linguaggi, ma molto più espressivo) se la pagina esiste tra quelle elencate nel file di configurazione, in caso contrario il caso di default `_` porterà alla pagina `404.html` per segnalare che il contenuto non esiste.
+Adesso possiamo leggere il contenuto della pagina richiesta e scrivere sullo stream la risposta http.
 ```rust
 fn handle_connection(mut stream: TcpStream, config: Arc<Config>) {
     let buf_reader = BufReader::new(&stream);
@@ -182,5 +183,115 @@ fn handle_connection(mut stream: TcpStream, config: Arc<Config>) {
     }
 }
 ```
-`...`
+## Contenuto di `lib.rs`
+Oltre all'implementazione della deserializzazione del file di configurazione, all'interno del file `lib.rs` vi si trova il codice per la gestione della `ThreadPool` e dei `Worker`.
+
+### Worker
+La struct che definisce i `Worker` è molto semplice:
+```rust
+pub struct Worker {
+    id: usize,
+    thread: thread::JoinHandle<()>,
+}
+```
+Abbiamo infatti solo un id per poter differenziare i `Worker` e l'handle che gli permette di attaccarsi ad i thread in arrivo.
+
+Implementiamo poi il metodo per poter creare un nuovo `Worker` che rimarrà in ascolto di nuovi `job` su un suo thread apposito da eseguire.
+Restituiamo alla fine `Worker { id, thread }` per essere gestito dalla `ThreadPool`.
+```rust
+impl Worker {
+    /// Create a new worker that listen for new jobs to execute
+    pub fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
+        let thread = thread::spawn(move || {
+            loop {
+                let message = receiver.lock().unwrap().recv();
+
+                match message {
+                    Ok(job) => {
+                        println!("Worker {id} got a job; executing.");
+                        job();
+                    }
+                    Err(_) => {
+                        println!("Worker {id} disconnected! Shutting down!");
+                        break;
+                    }
+                }
+            }
+        });
+
+        Worker { id, thread }
+    }
+}
+```
+
+`job` è un abbreviazione il tipo completo è definito cosi: 
+```rust
+type Job = Box<dyn FnOnce() + Send + 'static>;
+```
+Ovvero un puntatore `Box<T>` ad una funzione col tratto `Send`.
+
+### ThreadPool
+Nella struct che definisce la `ThreadPool` abbiamo come attributi un vettore di `Worker` e il canale per mandare i thread che riceviamo ai nostri `Worker`.
+```rust
+pub struct ThreadPool {
+    workers: Vec<Worker>,
+    sender: Option<mpsc::Sender<Job>>,
+}
+```
+
+Le due funzioni implementate servono rispettivamente per inizializzare la `ThreadPool` e per mandare richieste ai `Worker` liberi.
+```rust
+impl ThreadPool {
+    /// Create a ThreadPool
+    ///
+    /// The `new` function will panic if the size is zero.
+    pub fn new(size: usize) -> ThreadPool {
+        assert!(size > 0);
+
+        let (sender, receiver) = mpsc::channel();
+
+        let receiver = Arc::new(Mutex::new(receiver));
+
+        let mut workers = Vec::with_capacity(size);
+
+        for i in 0..size {
+            workers.push(Worker::new(i, Arc::clone(&receiver)));
+        }
+
+        ThreadPool {
+            workers,
+            sender: Some(sender),
+        }
+    }
+
+    /// Send the job to a worker in the `ThreadPool`
+    pub fn execute<F>(&self, f: F)
+    where
+        F: FnOnce() + Send + 'static,
+    {
+        let job = Box::new(f);
+
+        self.sender.as_ref().unwrap().send(job).unwrap();
+    }
+}
+```
+
+Non dobbiamo scordarci di implementare anche il tratto `Drop` dove nella funzione `drop(&mut self)` andiamo a descrivere come si dovrà comportare il programma quando la `ThreadPool` cadrà fuori dallo scopo e quindi dovrà essere liberata dalla memoria.
+```rust
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        drop(self.sender.take());
+
+        for worker in &mut self.workers.drain(..) {
+            println!("Shutting down worker {}", worker.id);
+
+            worker.thread.join().unwrap();
+        }
+    }
+}
+```
+
+# Conclusione
+Grazie di aver letto fino ad ora spero possa essere stato interessante.
+
 </main>
