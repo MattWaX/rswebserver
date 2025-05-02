@@ -183,7 +183,7 @@ fn handle_connection(mut stream: TcpStream, config: Arc<Config>) {
     }
 }
 ```
-## Contenuto di `lib.rs`
+## Contenuto di lib.rs
 Oltre all'implementazione della deserializzazione del file di configurazione, all'interno del file `lib.rs` vi si trova il codice per la gestione della `ThreadPool` e dei `Worker`.
 
 ### Worker
@@ -292,8 +292,8 @@ impl Drop for ThreadPool {
 ```
 
 # Conclusione
-
 Rust è un linguaggio molto complesso, ma anche estremamente espressivo, dove il focus principale è garantire l'utilizzo della memoria in modo sicuro e altre velocità di esecuzione, ciò lo rende un linguaggio molto adatto a questo genere di mansioni ed anche divertente da scrivere.
+
 Grazie di aver letto fino ad ora spero possa essere stato interessante.
 
 </main>
