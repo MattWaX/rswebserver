@@ -2,7 +2,6 @@
 # Introduzione capolavoro
 Essendo un amante del linguaggio di programmazione rust e affascinato dalla programmazione con correnti, ho deciso di implementare un web server molto basilare capace di rispondere a più richieste contemporaneamente, ma anche configurabile tramite un file toml.
 
-Questa pagina è sia disponibile sul web server stesso a quest'[indirizzo](http://webserver.rust.mattwax.yxz) (ma sarà attivo solo per occasioni particolari), oppure vi si può accedere da questo link: [mattwax.xyz/rs/webserver/](https://mattwax.xyz/rs/webserver/).
 Il repository di git con il codice sorgente e questa pagina web è presente a quest'[indirizzo](https://github.com/MattWaX/rswebserver).
 
 # Il codice
